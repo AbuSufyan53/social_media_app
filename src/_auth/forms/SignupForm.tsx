@@ -4,14 +4,20 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
+import { ToastAction } from "@/components/ui/toast"
+
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import Loader from "@/components/shared/Loader"
 import { Link } from "react-router-dom"
-import { createUserAccount } from "@/lib/appwrite/api"
+import { useCreateUserAccountMutation, useSignInAccountMutation } from "@/lib/react-query/queriesAndMutations"
 
 const SignupForm = () => {
-    const isLoading = false
+    const {toast} = useToast()
+    
+    const { mutateAsync:createUserAccount, isPending:isCreatingUser } = useCreateUserAccountMutation() //https://www.youtube.com/watch?v=_W3R2VwRyF4&t=8860s 1:35
+    const { mutateAsync:signInAccount, isPending:isSigningIn} = useSignInAccountMutation()
 
     // 1. Define your form.
     const form = useForm<z.infer<typeof SignUpValidation>>({
@@ -29,9 +35,32 @@ const SignupForm = () => {
         // Do something with the form values.
         // ✅ This will be type-safe and validated.
         const newUser = await createUserAccount(values)
-        console.log(newUser)
-    }
+        if (!newUser) {
+            return toast({
+            variant: "destructive",
+            title: "Uh oh! Something went wrong.Signed Up Failed. Please Try again",
+            description: "There was a problem with your request.",
+            action: <ToastAction altText="Try again">Try again</ToastAction>,
+        })}
 
+        const session = await signInAccount({
+            email:values.email,
+            password:values.password,
+        })
+
+        if(!session){
+            return toast({
+                title:"Uh oh! Something went wrong. Login Failed. Please Try again"
+            })
+        }
+    }
+    function clickHandle(){
+        return toast({title:"something went wrong", 
+                    variant: "destructive",
+                    description: "There was a problem with your request.",
+            action: <ToastAction altText="Try again">Try again</ToastAction>,
+    })
+    }
     return (
         <Form {...form}>
             <div className="sm:w-420 flex-center flex-col">
@@ -100,7 +129,7 @@ const SignupForm = () => {
                         )}
                     />
                     <Button type="submit" className="shad-button_primary">
-                        {isLoading
+                        {isCreatingUser
                             ?
                             <div className="flex-center gap-2">
                                 <Loader />Loading...
@@ -109,6 +138,7 @@ const SignupForm = () => {
                             "Sign Up"
                         }
                     </Button>
+                    <button onClick={()=>clickHandle()}>click</button>
                     <p className="text-small-regular text-light-2 text-center mt-2">Already have account? <Link to="/sign-in" className="text-primary-500 text-small-semibold ml-1">login</Link></p>
                 </form>
             </div>
